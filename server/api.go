@@ -90,6 +90,7 @@ func initApi() {
 	http.HandleFunc("/admin/unban", adminBanMute)
 	http.HandleFunc("/admin/unmute", adminBanMute)
 	http.HandleFunc("/admin/changeusername", adminChangeUsername)
+	http.HandleFunc("/admin/temporaryban", adminTempBanUser)
 	http.HandleFunc("/admin/resetpw", adminResetPw)
 	http.HandleFunc("/admin/grantbadge", adminManageBadge)
 	http.HandleFunc("/admin/revokebadge", adminManageBadge)
