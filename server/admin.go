@@ -20,6 +20,7 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 )
 
 func adminGetPlayers(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +54,7 @@ func adminGetBansMutes(w http.ResponseWriter, r *http.Request) {
 		handleError(w, r, "access denied")
 		return
 	}
-	
+
 	responseJson, err := json.Marshal(getBannedMutedPlayers(r.URL.Path == "/admin/getbans"))
 	if err != nil {
 		handleError(w, r, "error while marshaling")
@@ -69,6 +70,8 @@ func adminBanMute(w http.ResponseWriter, r *http.Request) {
 		handleError(w, r, "access denied")
 		return
 	}
+
+	query := r.URL.Query()
 
 	targetUuid := r.URL.Query().Get("uuid")
 	if targetUuid == "" {
@@ -92,6 +95,13 @@ func adminBanMute(w http.ResponseWriter, r *http.Request) {
 		targetUuid = uuid
 	}
 
+	var expiry *time.Time
+	if expiryString := r.URL.Query().Get("expiry"); expiryString != "" {
+		if parsedExpiry, err := time.Parse(time.RFC3339, expiryString); err == nil && parsedExpiry.Compare(time.Now()) > 0 {
+			expiry = &parsedExpiry
+		}
+	}
+
 	var err error
 	switch r.URL.Path {
 	case "/admin/ban":
@@ -102,6 +112,18 @@ func adminBanMute(w http.ResponseWriter, r *http.Request) {
 		err = tryMutePlayer(uuid, targetUuid)
 	case "/admin/unmute":
 		err = tryUnmutePlayer(uuid, targetUuid)
+	case "/admin/tempban":
+		if expiry == nil {
+			handleError(w, r, "tempban requires expiry")
+			return
+		}
+		err = tryBanPlayerWithDetail(uuid, targetUuid, *expiry, query.Get("reason"))
+	case "/admin/tempmute":
+		if expiry == nil {
+			handleError(w, r, "tempmute requires expiry")
+			return
+		}
+		err = tryMutePlayerWithDetail(uuid, targetUuid, *expiry, query.Get("reason"))
 	}
 	if err != nil {
 		handleInternalError(w, r, err)

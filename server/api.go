@@ -71,6 +71,11 @@ type PlayerListFullData struct {
 	LastActive time.Time `json:"lastActive"`
 }
 
+const (
+	actionBan = iota
+	actionMute
+)
+
 type CheckUpdateData struct {
 	BadgeIds []string `json:"badgeIds"`
 	NewTags  bool     `json:"newTags"`

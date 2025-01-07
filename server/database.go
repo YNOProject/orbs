@@ -94,6 +94,26 @@ func tryBanPlayer(senderUuid string, recipientUuid string) error { // called by 
 	return banPlayerUnchecked(recipientUuid, true)
 }
 
+func tryBanPlayerWithDetail(senderUuid, recipientUuid string, expiry time.Time, reason string) error {
+	err := tryBanPlayer(senderUuid, recipientUuid)
+	if err != nil {
+		return err
+	}
+
+	return registerModAction(recipientUuid, actionBan, expiry, reason)
+}
+
+func registerModAction(uuid string, action int, expiry time.Time, reason string) error {
+	_, err := db.Exec(
+		"INSERT INTO playerModerationActions (uuid, action, reason, time, expiry) VALUES (?, ?, ?, NOW(), ?)",
+		uuid, action, reason, expiry)
+	if err != nil {
+		return err
+	}
+
+	return scheduleModActionReversal(uuid, actionBan, expiry)
+}
+
 func banPlayerUnchecked(recipientUuid string, updateDb bool) error {
 	if updateDb {
 		_, err := db.Exec("UPDATE players SET banned = 1 WHERE uuid = ?", recipientUuid)
@@ -149,6 +169,15 @@ func tryMutePlayer(senderUuid string, recipientUuid string) error { // called by
 	return mutePlayerUnchecked(recipientUuid, true)
 }
 
+func tryMutePlayerWithDetail(senderUuid, recipientUuid string, expiry time.Time, reason string) error {
+	err := tryMutePlayer(senderUuid, recipientUuid)
+	if err != nil {
+		return err
+	}
+
+	return registerModAction(recipientUuid, actionMute, expiry, reason)
+}
+
 func mutePlayerUnchecked(recipientUuid string, updateDb bool) error {
 	if updateDb {
 		_, err := db.Exec("UPDATE players SET muted = 1 WHERE uuid = ?", recipientUuid)
@@ -180,6 +209,10 @@ func tryUnmutePlayer(senderUuid string, recipientUuid string) error { // called 
 		return errors.New("attempted self-unmute")
 	}
 
+	return unmutePlayerUnchecked(recipientUuid)
+}
+
+func unmutePlayerUnchecked(recipientUuid string) error {
 	_, err := db.Exec("UPDATE players SET muted = 0 WHERE uuid = ?", recipientUuid)
 	if err != nil {
 		return err
